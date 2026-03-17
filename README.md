@@ -1,5 +1,104 @@
 # Pull, Otimização e Avaliação de Prompts com LangChain e LangSmith
 
+## Resultados Finais
+
+O processo de otimização resultou em um conjunto de User Stories que atendem plenamente aos requisitos de clareza, correção e utilidade.
+
+### Dashboard LangSmith
+- **Link do Experimento Público:** [Acesse o Dashboard Aqui](https://smith.langchain.com/public/5994a815-ac7f-473a-b209-51a1e31131a1/d)
+
+### Dashboard de Avaliação (Screenshot)
+![alt text](image.png)
+
+### Tabela Comparativa: Prompt v1 (Original) vs Prompt v2 (Otimizado)
+
+| Métrica | Prompt v1 (Original) | Prompt v2 (Otimizado) | Evolução | Status |
+| :--- | :---: | :---: | :---: | :---: |
+| **Clarity** | 0.89 | **0.95** | +6% | APROVADO ✓ |
+| **F1-Score** | 0.80 | **0.90** | +12% | APROVADO ✓ |
+| **Precision** | 0.86 | **0.98** | +14% | APROVADO ✓ |
+| **MÉDIA GERAL** | 0.85 | **0.94** | +10% | **APROVADO ✓** |
+
+## Técnicas Aplicadas (Fase 2)
+
+Para atingir a excelência na conversão de bugs em User Stories, apliquei as seguintes técnicas de Prompt Engineering no [prompts/bug_to_user_story_v2.yml](prompts/bug_to_user_story_v2.yml):
+
+### 1. Role Prompting
+- **O que é:** Definir uma persona específica para o LLM.
+- **Justificativa:** Ao assumir o papel de um "Product Manager sênior com experiência em QA", o modelo adota um tom profissional e foca em critérios que são relevantes para o desenvolvimento e testes, garantindo que a User Story seja "acionável".
+- **Exemplo Prático:** `Você é um Product Manager sênior com experiência em QA. Sua tarefa é transformar relatos de bugs em User Stories completas...`
+
+### 2. Few-shot Learning
+- **O que é:** Fornecer exemplos de entrada e saída para guiar o comportamento do modelo.
+- **Justificativa:** É a técnica mais eficaz para garantir que o modelo siga o formato desejado e entenda a diferença entre bugs simples, médios e complexos. Ajuda a manter a consistência na resposta.
+- **Exemplo Prático:** Incluí 6 exemplos detalhados no prompt, cobrindo desde bugs de validação simples até falhas de segurança complexas com múltiplos impactos.
+
+### 3. Skeleton of Thought (SoT)
+- **O que é:** Estruturar a resposta em etapas ou seções pré-definidas.
+- **Justificativa:** Para bugs complexos, o modelo precisa organizar muita informação. Definir seções como "USER STORY PRINCIPAL", "CRITÉRIOS DE ACEITAÇÃO" e "TASKS TÉCNICAS SUGERIDAS" força o modelo a cobrir todos os aspectos do bug.
+- **Exemplo Prático:** `FORMATO PARA BUGS COMPLEXOS: ... === USER STORY PRINCIPAL === ... === CRITÉRIOS DE ACEITAÇÃO === ...`
+
+### 4. Chain of Thought (CoT)
+- **O que é:** Instruir o modelo a seguir um raciocínio lógico antes de gerar a saída final (neste caso, embutido na classificação de complexidade).
+- **Justificativa:** O modelo precisa "decidir" qual formato usar (Simples, Médio ou Complexo) com base no conteúdo do relato. A instrução de classificação interna ajuda nessa decisão lógica.
+- **Exemplo Prático:** `CLASSIFICAÇÃO DE COMPLEXIDADE (use internamente, NÃO inclua na saída): SIMPLES: relato em texto corrido... MÉDIO: relato com alguma estrutura... COMPLEXO: relato que lista MÚLTIPLOS PROBLEMAS...`
+
+---
+
+## Como Executar
+
+### Pré-requisitos
+- **Python 3.9+** instalado
+- Conta no [LangSmith](https://smith.langchain.com/) e API Key configurada
+- OpenAI API Key (ou Gemini API Key)
+
+### Dependências
+Crie um ambiente virtual e instale as bibliotecas necessárias:
+```bash
+python3 -m venv venv
+source venv/bin/activate # (ou venv\Scripts\activate no Windows)
+pip install -r requirements.txt
+```
+
+### Variáveis de Ambiente
+Crie um arquivo `.env` baseado no `.env.example` e preencha as chaves:
+```bash
+LANGSMITH_API_KEY=sua_chave
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGCHAIN_PROJECT=seu-projeto
+
+OPENAI_API_KEY=sua_chave
+# ou...
+GOOGLE_API_KEY=sua_chave
+```
+
+### Fluxo de Execução
+
+1. **Pull do Prompt Base:** Baixe o prompt `v1` do LangSmith:
+   ```bash
+   python src/pull_prompts.py
+   ```
+
+2. **Refatoração:** Edite o arquivo [prompts/bug_to_user_story_v2.yml](prompts/bug_to_user_story_v2.yml) aplicando as técnicas de Prompt Engineering.
+
+3. **Validação dos Testes:** Garanta que seu prompt atende aos requisitos mínimos:
+   ```bash
+   pytest tests/test_prompts.py
+   ```
+
+4. **Push do Prompt:** Envie o prompt otimizado para o seu repositório pessoal no LangSmith:
+   ```bash
+   python src/push_prompts.py
+   ```
+
+5. **Avaliação:** Execute a bateria de testes de IA e confira as métricas:
+   ```bash
+   python src/evaluate.py
+   ```
+
+---
+
 ## Objetivo
 
 Você deve entregar um software capaz de:
@@ -11,6 +110,34 @@ Você deve entregar um software capaz de:
 5. **Atingir pontuação mínima** de 0.9 (90%) em todas as métricas de avaliação
 
 ---
+
+## Técnicas Aplicadas (Fase 2)
+
+Para atingir a excelência na conversão de bugs em User Stories, apliquei as seguintes técnicas de Prompt Engineering no [prompts/bug_to_user_story_v2.yml](prompts/bug_to_user_story_v2.yml):
+
+### 1. Role Prompting
+- **O que é:** Definir uma persona específica para o LLM.
+- **Justificativa:** Ao assumir o papel de um "Product Manager sênior com experiência em QA", o modelo adota um tom profissional e foca em critérios que são relevantes para o desenvolvimento e testes, garantindo que a User Story seja "acionável".
+- **Exemplo Prático:** `Você é um Product Manager sênior com experiência em QA. Sua tarefa é transformar relatos de bugs em User Stories completas...`
+
+### 2. Few-shot Learning
+- **O que é:** Fornecer exemplos de entrada e saída para guiar o comportamento do modelo.
+- **Justificativa:** É a técnica mais eficaz para garantir que o modelo siga o formato desejado e entenda a diferença entre bugs simples, médios e complexos. Ajuda a manter a consistência na resposta.
+- **Exemplo Prático:** Incluí 6 exemplos detalhados no prompt, cobrindo desde bugs de validação simples até falhas de segurança complexas com múltiplos impactos.
+
+### 3. Skeleton of Thought (SoT)
+- **O que é:** Estruturar a resposta em etapas ou seções pré-definidas.
+- **Justificativa:** Para bugs complexos, o modelo precisa organizar muita informação. Definir seções como "USER STORY PRINCIPAL", "CRITÉRIOS DE ACEITAÇÃO" e "TASKS TÉCNICAS SUGERIDAS" força o modelo a cobrir todos os aspectos do bug.
+- **Exemplo Prático:** `FORMATO PARA BUGS COMPLEXOS: ... === USER STORY PRINCIPAL === ... === CRITÉRIOS DE ACEITAÇÃO === ...`
+
+### 4. Chain of Thought (CoT)
+- **O que é:** Instruir o modelo a seguir um raciocínio lógico antes de gerar a saída final (neste caso, embutido na classificação de complexidade).
+- **Justificativa:** O modelo precisa "decidir" qual formato usar (Simples, Médio ou Complexo) com base no conteúdo do relato. A instrução de classificação interna ajuda nessa decisão lógica.
+- **Exemplo Prático:** `CLASSIFICAÇÃO DE COMPLEXIDADE (use internamente, NÃO inclua na saída): SIMPLES: relato em texto corrido... MÉDIO: relato com alguma estrutura... COMPLEXO: relato que lista MÚLTIPLOS PROBLEMAS...`
+
+---
+## Como executar
+//TODO
 
 ## Exemplo no CLI
 
@@ -49,6 +176,7 @@ Prompt: support_bot_v2_optimized
 ================================
 Status: APROVADO ✓ - Todas as métricas atingiram o mínimo de 0.9
 ```
+
 ---
 
 ## Tecnologias obrigatórias
@@ -321,3 +449,55 @@ python src/evaluate.py
 - **Não altere os datasets de avaliação** - apenas os prompts em `prompts/bug_to_user_story_v2.yml`
 - **Itere, itere, itere** - é normal precisar de 3-5 iterações para atingir 0.9 em todas as métricas
 - **Documente seu processo** - a jornada de otimização é tão importante quanto o resultado final
+
+## Como Executar
+
+### Pré-requisitos
+- **Python 3.9+** instalado
+- Conta no [LangSmith](https://smith.langchain.com/) e API Key configurada
+- OpenAI API Key (ou Gemini API Key)
+
+### Dependências
+Crie um ambiente virtual e instale as bibliotecas necessárias:
+```bash
+python3 -m venv venv
+source venv/bin/activate # (ou venv\Scripts\activate no Windows)
+pip install -r requirements.txt
+```
+
+### Variáveis de Ambiente
+Crie um arquivo `.env` baseado no `.env.example` e preencha as chaves:
+```bash
+LANGSMITH_API_KEY=sua_chave
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGCHAIN_PROJECT=seu-projeto
+
+OPENAI_API_KEY=sua_chave
+# ou...
+GOOGLE_API_KEY=sua_chave
+```
+
+### Fluxo de Execução
+
+1. **Pull do Prompt Base:** Baixe o prompt `v1` do LangSmith:
+   ```bash
+   python src/pull_prompts.py
+   ```
+
+2. **Refatoração:** Edite o arquivo [prompts/bug_to_user_story_v2.yml](prompts/bug_to_user_story_v2.yml) aplicando as técnicas de Prompt Engineering.
+
+3. **Validação dos Testes:** Garanta que seu prompt atende aos requisitos mínimos:
+   ```bash
+   pytest tests/test_prompts.py
+   ```
+
+4. **Push do Prompt:** Envie o prompt otimizado para o seu repositório pessoal no LangSmith:
+   ```bash
+   python src/push_prompts.py
+   ```
+
+5. **Avaliação:** Execute a bateria de testes de IA e confira as métricas:
+   ```bash
+   python src/evaluate.py
+   ```
