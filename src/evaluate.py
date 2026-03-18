@@ -52,14 +52,14 @@ def load_dataset_from_jsonl(jsonl_path: str) -> List[Dict[str, Any]]:
         return examples
 
     except FileNotFoundError:
-        print(f"❌ Arquivo não encontrado: {jsonl_path}")
+        print(f"X Arquivo não encontrado: {jsonl_path}")
         print("\nCertifique-se de que o arquivo datasets/bug_to_user_story.jsonl existe.")
         return []
     except json.JSONDecodeError as e:
-        print(f"❌ Erro ao parsear JSONL: {e}")
+        print(f"X Erro ao parsear JSONL: {e}")
         return []
     except Exception as e:
-        print(f"❌ Erro ao carregar dataset: {e}")
+        print(f"X Erro ao carregar dataset: {e}")
         return []
 
 
@@ -69,10 +69,10 @@ def create_evaluation_dataset(client: Client, dataset_name: str, jsonl_path: str
     examples = load_dataset_from_jsonl(jsonl_path)
 
     if not examples:
-        print("❌ Nenhum exemplo carregado do arquivo .jsonl")
+        print(" Nenhum exemplo carregado do arquivo .jsonl")
         return dataset_name
 
-    print(f"   ✓ Carregados {len(examples)} exemplos do arquivo {jsonl_path}")
+    print(f"   [OK] Carregados {len(examples)} exemplos do arquivo {jsonl_path}")
 
     try:
         datasets = client.list_datasets(dataset_name=dataset_name)
@@ -84,7 +84,7 @@ def create_evaluation_dataset(client: Client, dataset_name: str, jsonl_path: str
                 break
 
         if existing_dataset:
-            print(f"   ✓ Dataset '{dataset_name}' já existe, usando existente")
+            print(f"   [OK] Dataset '{dataset_name}' já existe, usando existente")
             return dataset_name
         else:
             dataset = client.create_dataset(dataset_name=dataset_name)
@@ -96,11 +96,11 @@ def create_evaluation_dataset(client: Client, dataset_name: str, jsonl_path: str
                     outputs=example["outputs"]
                 )
 
-            print(f"   ✓ Dataset criado com {len(examples)} exemplos")
+            print(f"   [OK] Dataset criado com {len(examples)} exemplos")
             return dataset_name
 
     except Exception as e:
-        print(f"   ⚠️  Erro ao criar dataset: {e}")
+        print(f" Erro ao criar dataset: {e}")
         return dataset_name
 
 
@@ -108,18 +108,18 @@ def pull_prompt_from_langsmith(prompt_name: str) -> ChatPromptTemplate:
     try:
         print(f"   Puxando prompt do LangSmith Hub: {prompt_name}")
         prompt = hub.pull(prompt_name)
-        print(f"   ✓ Prompt carregado com sucesso")
+        print(f"   [OK] Prompt carregado com sucesso")
         return prompt
 
     except Exception as e:
         error_msg = str(e).lower()
 
         print(f"\n{'=' * 70}")
-        print(f"❌ ERRO: Não foi possível carregar o prompt '{prompt_name}'")
+        print(f" ERRO: Não foi possível carregar o prompt '{prompt_name}'")
         print(f"{'=' * 70}\n")
 
         if "not found" in error_msg or "404" in error_msg:
-            print("⚠️  O prompt não foi encontrado no LangSmith Hub.\n")
+            print("(!) O prompt não foi encontrado no LangSmith Hub.\n")
             print("AÇÕES NECESSÁRIAS:")
             print("1. Verifique se você já fez push do prompt otimizado:")
             print(f"   python src/push_prompts.py")
@@ -147,7 +147,7 @@ def evaluate_prompt(
     dataset_name: str,
     client: Client
 ) -> Dict[str, float]:
-    print(f"\n🔍 Avaliando: {prompt_name}")
+    print(f"\n Avaliando: {prompt_name}")
 
     try:
         prompt_template = pull_prompt_from_langsmith(prompt_name)
@@ -162,13 +162,17 @@ def evaluate_prompt(
             except Exception as e:
                 return {"output": ""}
 
-        # Avaliadores customizados
+        # Funções de avaliação para o LangSmith
         def f1_evaluator(run: Run, example: Example) -> dict:
             inputs = example.inputs or {}
             question = inputs.get("question", inputs.get("bug_report", inputs.get("pr_title", "N/A")))
             prediction = run.outputs.get("output", "") if run.outputs else ""
             reference = example.outputs.get("reference", "") if example.outputs else ""
             result = evaluate_f1_score(question, prediction, reference)
+            
+            # Log local
+            print(f"      [Eval] F1 Score: {result['score']:.4f}")
+            
             return {"key": "f1_score", "score": result["score"]}
 
         def clarity_evaluator(run: Run, example: Example) -> dict:
@@ -177,6 +181,10 @@ def evaluate_prompt(
             prediction = run.outputs.get("output", "") if run.outputs else ""
             reference = example.outputs.get("reference", "") if example.outputs else ""
             result = evaluate_clarity(question, prediction, reference)
+            
+            # Log local
+            print(f"      [Eval] Clarity: {result['score']:.4f}")
+            
             return {"key": "clarity", "score": result["score"]}
 
         def precision_evaluator(run: Run, example: Example) -> dict:
@@ -185,12 +193,11 @@ def evaluate_prompt(
             prediction = run.outputs.get("output", "") if run.outputs else ""
             reference = example.outputs.get("reference", "") if example.outputs else ""
             result = evaluate_precision(question, prediction, reference)
+            
+            # Log local
+            print(f"      [Eval] Precision: {result['score']:.4f}")
+            
             return {"key": "precision", "score": result["score"]}
-
-        def helpfulness_evaluator(run: Run, example: Example) -> dict:
-            # Re-calcula ou faz a média (Simplificando: Langsmith suporta múltiplos avaliadores independentes)
-            # Para não pesar nas chamadas de LLM atoa, podemos retornar com base em logica local, ou apenas criar a nota final no script.
-            pass  # omitido aqui pois agregaremos depois
 
         print("   Iniciando experimento no LangSmith...")
         
@@ -208,26 +215,28 @@ def evaluate_prompt(
         clarity_scores = []
         precision_scores = []
 
+        # Acessando os resultados diretamente do objeto experiment_results (EvaluationSummary)
         for result in experiment_results:
-            results_obj = getattr(result, "evaluation_results", {})
-
-            if isinstance(results_obj, dict):
-                results_list = results_obj.get("results", [])
-            elif isinstance(results_obj, list):
-                results_list = results_obj
+            results_dict = getattr(result, "evaluation_results", {})
+            # Se for um dicionário (com chave 'results'), ou uma lista direta de EvaluationResult
+            if isinstance(results_dict, dict):
+                results_list = results_dict.get("results", [])
             else:
-                results_list = []
+                results_list = results_dict # Assume lista de EvaluationResult
 
             for eval_res in results_list:
-                if isinstance(eval_res, dict):
+                # Extraindo o nome da métrica e o valor
+                if hasattr(eval_res, "key"):
+                    key = eval_res.key
+                    score = eval_res.score
+                elif isinstance(eval_res, dict):
                     key = eval_res.get("key", "")
                     score = eval_res.get("score", 0.0)
                 else:
-                    key = getattr(eval_res, "key", "")
-                    score = getattr(eval_res, "score", 0.0)
+                    continue
 
                 try:
-                    numeric_score = float(score)
+                    numeric_score = float(score) if score is not None else 0.0
                 except (TypeError, ValueError):
                     numeric_score = 0.0
 
@@ -245,7 +254,7 @@ def evaluate_prompt(
         avg_helpfulness = (avg_clarity + avg_precision) / 2
         avg_correctness = (avg_f1 + avg_precision) / 2
 
-        print("   ✅ Experimento concluído e publicado no LangSmith!")
+        print("Experimento concluído e publicado no LangSmith!")
 
         return {
             "helpfulness": round(avg_helpfulness, 4),
@@ -256,7 +265,7 @@ def evaluate_prompt(
         }
 
     except Exception as e:
-        print(f"   ❌ Erro na avaliação: {e}")
+        print(f"Erro na avaliação: {e}")
         return {
             "helpfulness": 0.0,
             "correctness": 0.0,
@@ -283,16 +292,16 @@ def display_results(prompt_name: str, scores: Dict[str, float]) -> bool:
     average_score = sum(scores.values()) / len(scores)
 
     print("\n" + "-" * 50)
-    print(f"📊 MÉDIA GERAL: {average_score:.4f}")
+    print(f"MEDIA GERAL: {average_score:.4f}")
     print("-" * 50)
 
     passed = average_score >= 0.9
 
     if passed:
-        print(f"\n✅ STATUS: APROVADO (média >= 0.9)")
+        print(f"\n[OK] STATUS: APROVADO (média >= 0.9)")
     else:
-        print(f"\n❌ STATUS: REPROVADO (média < 0.9)")
-        print(f"⚠️  Média atual: {average_score:.4f} | Necessário: 0.9000")
+        print(f"\n[X] STATUS: REPROVADO (média < 0.9)")
+        print(f"(!) Média atual: {average_score:.4f} | Necessário: 0.9000")
 
     return passed
 
@@ -323,7 +332,7 @@ def main():
     jsonl_path = "datasets/bug_to_user_story.jsonl"
 
     if not Path(jsonl_path).exists():
-        print(f"❌ Arquivo de dataset não encontrado: {jsonl_path}")
+        print(f"[X] Arquivo de dataset não encontrado: {jsonl_path}")
         print("\nCertifique-se de que o arquivo existe antes de continuar.")
         return 1
 
@@ -361,7 +370,7 @@ def main():
             })
 
         except Exception as e:
-            print(f"\n❌ Falha ao avaliar '{prompt_name}': {e}")
+            print(f"\n[X] Falha ao avaliar '{prompt_name}': {e}")
             all_passed = False
 
             results_summary.append({
@@ -381,7 +390,7 @@ def main():
     print("=" * 50 + "\n")
 
     if evaluated_count == 0:
-        print("⚠️  Nenhum prompt foi avaliado")
+        print("(!) Nenhum prompt foi avaliado")
         return 1
 
     print(f"Prompts avaliados: {evaluated_count}")
@@ -389,8 +398,8 @@ def main():
     print(f"Reprovados: {sum(1 for r in results_summary if not r['passed'])}\n")
 
     if all_passed:
-        print("✅ Todos os prompts atingiram média >= 0.9!")
-        print(f"\n✓ Confira os resultados em:")
+        print("[OK] Todos os prompts atingiram média >= 0.9!")
+        print(f"\n[OK] Confira os resultados em:")
         print(f"  https://smith.langchain.com/projects/{project_name}")
         print("\nPróximos passos:")
         print("1. Documente o processo no README.md")
@@ -398,7 +407,7 @@ def main():
         print("3. Faça commit e push para o GitHub")
         return 0
     else:
-        print("⚠️  Alguns prompts não atingiram média >= 0.9")
+        print("(!) Alguns prompts não atingiram média >= 0.9")
         print("\nPróximos passos:")
         print("1. Refatore os prompts com score baixo")
         print("2. Faça push novamente: python src/push_prompts.py")

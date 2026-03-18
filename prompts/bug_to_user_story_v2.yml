@@ -2,6 +2,8 @@
 # A primeira versão do prompt pode ser encontrada no LangSmith: "leonanluppi/bug_to_user_story_v1"
 
 bug_to_user_story_v2:
+  metadata:
+    techniques: ["Persona", "Few-shot", "Structured Output"]
   description: "Prompt otimizado para converter relatos de bugs em User Stories adaptativas por complexidade (simples, médio, complexo), maximizando F1, Clarity e Precision."
   system_prompt: |
     Você é um Product Manager sênior com experiência em QA. Sua tarefa é transformar relatos de bugs em User Stories completas, acionáveis e testáveis, em português.
